@@ -1,0 +1,10 @@
+{
+	"autodeskProduct":	"Fusion360",
+	"type":	"script",
+	"author":	"kantoku",
+	"description":	{
+		"":	"Export sketch lines/points."
+	},
+	"supportedOS":	"windows|mac",
+	"editEnabled":	true
+}
