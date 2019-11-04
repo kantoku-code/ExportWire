@@ -1,6 +1,7 @@
-#FusionAPI_python ExportWire Ver0.0.2
+#FusionAPI_python ExportWire Ver0.0.3
 #Author-kantoku
-#Description-Export sketch lines/points.
+#Description-表示されている全てのスケッチの線をエクスポート
+#コンストラクションはエクスポートしません
 
 import adsk.core, adsk.fusion, traceback
 from itertools import chain
@@ -21,7 +22,7 @@ def run(context):
                 for skt in comp.sketches if skt.isVisible]
         ui.activeSelections.clear()
         
-        #正しい位置でｼﾞｵﾒﾄﾘ取得
+        #正しい位置でｼﾞｵﾒﾄﾘ取得       
         geos = list(chain.from_iterable(GetSketchCurvesGeos(skt) for skt in skts))
         if len(geos) < 1:
             ui.messageBox(msg_dic['not_found'])
@@ -42,7 +43,7 @@ def run(context):
 
         #tempBRep
         tmpMgr = adsk.fusion.TemporaryBRepManager.get()
-        crvs,_ = tmpMgr.createWireFromCurves(geos, True)
+        crvs, _ = tmpMgr.createWireFromCurves(geos, True)
         
         #実体化
         expRoot = expDes.rootComponent
@@ -67,7 +68,7 @@ def run(context):
         if ui:
             ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
-#言語別メッセージ　日本語以外は英語
+#lang message
 def GetMsg():
     langs = adsk.core.UserLanguages
     
@@ -82,7 +83,7 @@ def GetMsg():
     
     return dict(zip(keys, values))
 
-#ファイルエクスポート
+#file ExportOptions
 def ExportFile(path,expMgr):
     _, ext = os.path.splitext(path)
     
@@ -98,7 +99,7 @@ def ExportFile(path,expMgr):
     expMgr.execute(expOpt)
     return True
     
-#ﾌｧｲﾙパス
+#filepath Dialog
 def Get_Filepath(ui):
     dlg = ui.createFileDialog()
     dlg.title = '3DCurvesExport'
@@ -108,45 +109,57 @@ def Get_Filepath(ui):
         return
     return dlg.filename
 
-#新しいDocs
+#new Doc    
 def NewDoc(app):
     desDoc = adsk.core.DocumentTypes.FusionDesignDocumentType
     return app.documents.add(desDoc)
 
-#World座標でのジオメトリ取得
+#Root Geometry
 def GetSketchCurvesGeos(skt):
     if len(skt.sketchCurves) < 1:
         return None
     
     #extension
     adsk.fusion.SketchCurve.toGeoTF = SketchCurveToGeoTransform
-    adsk.fusion.Component.toOcc = ComponentToOccurrenc
+    adsk.fusion.Component.rootMatrix = GetRootMatrix
     
-    mat = skt.transform.copy()
-    occ = skt.parentComponent.toOcc()
-    
-    if not occ is None:
-        mat.transformBy(occ.transform)
-        
+    #Matrix
+    mat = skt.parentComponent.rootMatrix()
+
+    #Geometry Transform
     geos = [crv.toGeoTF(mat) for crv in skt.sketchCurves if not crv.isConstruction]
     
     return geos
 
-#adsk.fusion.SketchCurve
-def SketchCurveToGeoTransform(self,mat3d):
-    geo = self.geometry.copy()
+#adsk.fusion.SketchCurve  extension_method
+def SketchCurveToGeoTransform(self, mat3d):
+    geo = self.worldGeometry.copy()
     geo.transformBy(mat3d)
     
     return geo
 
-#adsk.fusion.Component 拡張メソッド
-#コンポーネントからオカレンスの取得　ルートはNone
-def ComponentToOccurrenc(self):
-    root = self.parentDesign.rootComponent
-    if self == root:
-        return None
-        
-    occs = [occ
-            for occ in root.allOccurrencesByComponent(self)
-            if occ.component == self]
-    return occs[0]
+#adsk.fusion.Componen extension_method
+def GetRootMatrix(self):
+    comp = adsk.fusion.Component.cast(self)
+    des = adsk.fusion.Design.cast(comp.parentDesign)
+    root = des.rootComponent
+
+    mat = adsk.core.Matrix3D.create()
+  
+    if comp == root:
+        return mat
+
+    occs = root.allOccurrencesByComponent(comp)
+    if len(occs) < 1:
+        return mat
+    
+    occ = occs[0]
+    occ_names = occ.fullPathName.split('+')
+    occs = [root.allOccurrences.itemByName(name) 
+                for name in occ_names]
+    mat3ds = [occ.transform for occ in occs]
+    mat3ds.reverse()
+    for mat3d in mat3ds:
+        mat.transformBy(mat3d)               
+
+    return mat
