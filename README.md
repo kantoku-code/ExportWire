@@ -1,7 +1,7 @@
 # ***ExportWire***
 This is a script for Autodesk software "Fusion360".
 
-Export sketch lines/points.
+Export sketch lines(line,Arc,Curve).
 
 
 # Installation
@@ -20,8 +20,8 @@ IGES (.igs), STEP (.stp), SAT (.sat)
 
 # Action
 Confirmed in the following environment.
- + Fusion360 Ver2.0.6516
- + Windows10 64bit Home
+ + Fusion360 Ver2.0.6613
+ + Windows10 64bit Pro
 
 # License
 MIT
